@@ -1,30 +1,71 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-author: Thomas Bradford Sprague
-date: 15 September 2016
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research: Peer Assessment 1
+Thomas Bradford Sprague  
+15 September 2016  
 
-```{r global_options, include=TRUE}
-```
+
 
 ## Loading and preprocessing the data
 Load the data a packages we will be using.
 
-```{r initial loading}
+
+```r
 require(dplyr)
+```
+
+```
+## Loading required package: dplyr
+```
+
+```
+## 
+## Attaching package: 'dplyr'
+```
+
+```
+## The following objects are masked from 'package:stats':
+## 
+##     filter, lag
+```
+
+```
+## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union
+```
+
+```r
 require(ggplot2)
+```
+
+```
+## Loading required package: ggplot2
+```
+
+```r
 require(lattice)
+```
+
+```
+## Loading required package: lattice
+```
+
+```r
 unzip("activity.zip")
 activityDF <- read.csv("activity.csv")
 str(activityDF)
 ```
+
+```
+## 'data.frame':	17568 obs. of  3 variables:
+##  $ steps   : int  NA NA NA NA NA NA NA NA NA NA ...
+##  $ date    : Factor w/ 61 levels "2012-10-01","2012-10-02",..: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
+```
 ### Mark records that have missing values, Convert factor variables 
 We create the variable (column) **StepsAreImputed** which is TRUE if the number of steps is originally missing (NA) and FALSE otherwise. This will allow us to distinguish measured versus imputed variables later in the analysis.
 
-```{r StepsAreImputed}
+
+```r
 activityDF <- transform(activityDF, StepsAreImputed=is.na(activityDF$steps))
 activityDF$interval <- factor(activityDF$interval)
 ```
@@ -32,7 +73,8 @@ activityDF$interval <- factor(activityDF$interval)
 ### Create POSIXct time variable 
 The **interval** column contains the time in twenty-four hour format. We extract the hour and minute values. Then convert to two-digit text format. Use the resulting string to create a POSIXct date-time variable.
 
-```{r Create POSIXct date-time variable}
+
+```r
 timeString <- as.character(activityDF$interval)
 theMinute  <- as.integer(timeString) %% 100
 theHour    <- as.character(as.integer(timeString)%/% 100)
@@ -51,45 +93,76 @@ rm(timeString, theMinute, theHour, theTime)
 ## What is mean total number of steps taken per day?
 We group by date, compute the sum of steps for each date, and then the histogram. The mean and median of the daily totals then follows.
 
-```{r histogram of steps per day}
+
+```r
 trimmedDF <- subset(activityDF, StepsAreImputed == FALSE)
 trimmedDF <- group_by(trimmedDF, date)
 DailyTotalSteps <- summarize(trimmedDF, DailySteps=sum(steps))
 hist(DailyTotalSteps$DailySteps, xlab="Daily Steps", main = "Total Steps per Day", col = "green")
 ```
 
+![](PA1_template_files/figure-html/histogram of steps per day-1.png)<!-- -->
+
 ### Mean and Median steps per day
-```{r mean and median steps per day}
+
+```r
 MeanDailyTotalSteps <- mean(DailyTotalSteps$DailySteps)
 MedianDailyTotalSteps <- median(DailyTotalSteps$DailySteps)
 print(MeanDailyTotalSteps)
+```
+
+```
+## [1] 10766.19
+```
+
+```r
 print(MedianDailyTotalSteps)
+```
+
+```
+## [1] 10765
 ```
 
 ## What is the average daily activity pattern?
 We compute the average number of steps in each time interval and make a time-series plot. Note that missing values are still ignored.
 
-```{r time series mean steps by time interval}
+
+```r
 activityDF <- group_by(activityDF, interval)
 IntervalMean <- summarize(activityDF, MeanStepsByInt=mean(steps, na.rm = TRUE))
 plot(x=IntervalMean$interval, IntervalMean$MeanStepsByInt)
 lines(x=IntervalMean$interval, IntervalMean$MeanStepsByInt, type = "l")
 ```
 
+![](PA1_template_files/figure-html/time series mean steps by time interval-1.png)<!-- -->
+
 ### Maximum Average Steps per Interval
 We compute the maximum value of the mean steps per interval and then identify the interval that corresponds to that greatest mean value.
 
-```{r maximum mean steps per interval}
+
+```r
 print(maxAverageSteps <- max(IntervalMean$MeanStepsByInt))
+```
+
+```
+## [1] 206.1698
+```
+
+```r
 print(intervalWithMaxSteps <- which(IntervalMean$MeanStepsByInt==maxAverageSteps))
 ```
-Thus, the maximum of the means is `r maxAverageSteps` 
-which is achieved in interval `r intervalWithMaxSteps`.
+
+```
+## [1] 104
+```
+Thus, the maximum of the means is 206.1698113 
+which is achieved in interval 104.
 
 ## Imputing missing values
 The number and percent of records with missing values follows.
 
-```{r number and percent missing values}
+
+```r
 numMissingValues <- sum(is.na(activityDF$steps))
 percentMissingValues <- round(100 * sum(is.na(activityDF$steps))/nrow(activityDF), digits = 2)
 ```
@@ -101,7 +174,8 @@ Our method for imputing missing values is to determine the mean number of steps 
 
 Our method to insert the missing values is to add a new column to the data frame that contains the average for the time interval represented by each row. That insertion is accomplished with the **dplyr::merge** function. It is then a simple matter to copy this column over any NA values in the **steps** variable. 
 
-```{r replace missing values}
+
+```r
 activityDF <- merge(activityDF, IntervalMean, by="interval")
 activityDF$steps <- ifelse(is.na(activityDF$steps), activityDF$MeanStepsByInt, activityDF$steps)
 ```
@@ -109,7 +183,8 @@ activityDF$steps <- ifelse(is.na(activityDF$steps), activityDF$MeanStepsByInt, a
 ### Compare Steps per Day With and Without Imputed Values
 For convenience o{f comparison, we repeat the histogram of steps per day ignoring missing values, then follow immediately with the histogram obtained by including imputed values.
 
-```{r Compare steps-per-day histograms with and without imputed values}
+
+```r
 par(mfrow=c(1,2))
 # DailyTotalSteps was previously computed. Data frame with date and steps per day
 
@@ -135,24 +210,26 @@ hist(DailyTotalSteps$DailySteps, xlab="Daily Steps", ylim=c(0, maxY),
 
 hist(DailyTotalSteps.withImputed$DailySteps, xlab="Daily Steps", ylim=c(0, maxY), 
      main="With Imputed Values", col="blue")
-
 ```
+
+![](PA1_template_files/figure-html/Compare steps-per-day histograms with and without imputed values-1.png)<!-- -->
 
 We see that the histograms have roughly the same shape, but there are more observations in the central bin when imputed values are included. This is not especially surprising. Imputed values are means *over a particular time interval*. Of course, these need not be the same as the mean over *all* time intervals. Never the less, means of any sort are less likely to be extreme values. That is to say, they are less variable and more likely to accumulate near the center of the overall distribution than are individual observations. That virtually all of them fell in the central bin this time was an accident. But accumulating near the overall distribution mean is not; this is the central limit theorem in action.
 
 ### Effect of Including Imputed Values on Distribution Mean and Median
 We compute the overall distribution mean and median both with and without the imputed values.
 
-```{r effect of imputed values on overall mean}
+
+```r
 meanOfSteps.noImputed <- mean(DailyTotalSteps$DailySteps)
 meanOfSteps.withImputed <- mean(DailyTotalSteps.withImputed$DailySteps)
 theDifference <- meanOfSteps.withImputed - meanOfSteps.noImputed
 ```
 
-The mean number of steps per day, ignoring missing values is `r sprintf("%7.2f", meanOfSteps.noImputed)`. 
+The mean number of steps per day, ignoring missing values is 10766.19. 
 If we include the imputed values we obtain an overall mean of 
-`r sprintf("%7.2f", meanOfSteps.withImputed)`, and a computed difference of 
-`r sprintf("%7.6f", theDifference)`. 
+10766.19, and a computed difference of 
+0.000000. 
 There is no significant impact on the overall mean number of steps per day.
 
 In this case, the no-effect outcome could not be predicted from knowing the strategy for imputing values alone. However, if it were also known that the distribution of missing values was uniform (or at least symmetric), then this result could be predicted. In other words, if every time interval has the same number of missing values, and each missing value is replaced by the mean for that interval, then there is no change to the overall mean.
@@ -160,7 +237,8 @@ In this case, the no-effect outcome could not be predicted from knowing the stra
 If we used the overall mean for all missing values (and we did not), then the no-effect outcome would have been certain.
 
 Medians don't work quite the same as means, so we might expect some impact on the median by imputing values. 
-```{r medians with and without imputed values}
+
+```r
 MedianDailyTotalSteps.noImputed <- median(DailyTotalSteps$DailySteps)
 MedianDailyTotalSteps.withImputed <- median(DailyTotalSteps.withImputed$DailySteps)
 theDifference <- MedianDailyTotalSteps.withImputed - MedianDailyTotalSteps.noImputed 
@@ -169,18 +247,19 @@ theDifference <- MedianDailyTotalSteps.withImputed - MedianDailyTotalSteps.noImp
 If the subdistributions (with respect to time interval) are roughly symmetric, the impact will be small. That is the case here.  
 
 The median number of total daily steps without imputed values is 
-`r sprintf("%7.2f", MedianDailyTotalSteps.noImputed)`. 
+10765.00. 
 When imputed values are included, the median becomes 
-`r sprintf("%7.2f", MedianDailyTotalSteps.withImputed)`.
+10766.19.
 The computed difference is 
-`r sprintf("%7.6f", theDifference)`. 
+1.188679. 
 There is an effect, but it is very small. 
 
 ## Differences in activity patterns between weekdays and weekends
 We proceed by comparing time-series plots for weekday versus weekend data. 
 A new factor variable, **weekend** with two levels: "weekday" and "weekend" facilitates the analysis.
 
-```{r weekday vs weekend time series}
+
+```r
 activityDF <- transform(activityDF, 
                 weekEnd=factor(ifelse(weekdays(activityDF$POSIX_DateTime) %in% 
                                         c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"),
@@ -198,13 +277,16 @@ xyplot(MeanStepsByInt~interval | factor(weekEnd), data=IntervalMean, lty=1,
        ylab="Number of Steps", layout=c(1,2), type="l")
 ```
 
+![](PA1_template_files/figure-html/weekday vs weekend time series-1.png)<!-- -->
+
 The differences between weekday and weekend distributions will be summarized after the next subsection.
 
 ### Additional Analyses
 The following were not required for this project, but seem helpful. We begin by repeating the
 time series, but this time superimposing the two plots in a single graph.
 
-```{r superimpose time series}}
+
+```r
 activityDF <- ungroup(activityDF)
 activityDF <- group_by(activityDF, weekEnd, interval)
 IntervalMean <- summarize(activityDF, MeanStepsByInt=mean(steps))
@@ -213,9 +295,12 @@ p <- p + geom_line()
 print(p)
 ```
 
+![](PA1_template_files/figure-html/superimpose time series}-1.png)<!-- -->
+
 
 Next, histograms of daily total steps for weekdays and weekends.
-```{r }
+
+```r
 activityDF <- ungroup(activityDF)
 activityDF <- group_by(activityDF, weekEnd, date)
 DailyTotalSteps.wk.wkEnd <- summarize(activityDF, steps=sum(steps))
@@ -226,13 +311,18 @@ p <- p + facet_grid(. ~ weekEnd)
 print(p)
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-1-1.png)<!-- -->
+
 Finally, boxplots for daily total steps.
 
-```{r boxplots for daily total steps by weekdays and weekends}
+
+```r
 p <- ggplot(data=DailyTotalSteps.wk.wkEnd, aes(x=weekEnd, y=steps, fill=weekEnd))
 p <- p + geom_boxplot()
 print(p)
 ```
+
+![](PA1_template_files/figure-html/boxplots for daily total steps by weekdays and weekends-1.png)<!-- -->
 
 With these additional plots it is easy to summarize the differences between weekday and weekend distributions of daily total steps and mean steps per time interval.
 

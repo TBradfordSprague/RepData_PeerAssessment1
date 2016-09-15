@@ -5,7 +5,7 @@ Thomas Bradford Sprague
 
 
 ## Loading and preprocessing the data
-Load the data a packages we will be using.
+Load the data and packages.
 
 
 ```r
@@ -62,7 +62,7 @@ str(activityDF)
 ##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
 ```
 ### Mark records that have missing values, Convert factor variables 
-We create the variable (column) **StepsAreImputed** which is TRUE if the number of steps is originally missing (NA) and FALSE otherwise. This will allow us to distinguish measured versus imputed variables later in the analysis.
+Create the variable (column) **StepsAreImputed**. For each record, set it equal to TRUE if the number of steps is missing (NA) and FALSE otherwise. This distinguishes measured versus imputed variables later in the analysis.
 
 
 ```r
@@ -90,15 +90,15 @@ activityDF <- transform(activityDF, POSIX_DateTime=POSIX_DateTime)
 rm(timeString, theMinute, theHour, theTime)
 ```
 
-## What is mean total number of steps taken per day?
-We group by date, compute the sum of steps for each date, and then the histogram. The mean and median of the daily totals then follows.
+## What is the mean total number of steps per day?
+We group by date, compute the sum of steps for each date, and then plot the histogram. The mean and median of the daily totals then follows.
 
 
 ```r
 trimmedDF <- subset(activityDF, StepsAreImputed == FALSE)
 trimmedDF <- group_by(trimmedDF, date)
 DailyTotalSteps <- summarize(trimmedDF, DailySteps=sum(steps))
-hist(DailyTotalSteps$DailySteps, xlab="Daily Steps", main = "Total Steps per Day", col = "green")
+hist(DailyTotalSteps$DailySteps, xlab="Daily Steps", main = "Mean Total Steps per Day", col = "green")
 ```
 
 ![](PA1_template_files/figure-html/histogram of steps per day-1.png)<!-- -->
@@ -108,20 +108,12 @@ hist(DailyTotalSteps$DailySteps, xlab="Daily Steps", main = "Total Steps per Day
 ```r
 MeanDailyTotalSteps <- mean(DailyTotalSteps$DailySteps)
 MedianDailyTotalSteps <- median(DailyTotalSteps$DailySteps)
-print(MeanDailyTotalSteps)
 ```
 
-```
-## [1] 10766.19
-```
-
-```r
-print(MedianDailyTotalSteps)
-```
-
-```
-## [1] 10765
-```
+The mean total steps per day is 
+10766.19. 
+The median of total steps per day is
+10765.00.
 
 ## What is the average daily activity pattern?
 We compute the average number of steps in each time interval and make a time-series plot. Note that missing values are still ignored.
@@ -155,8 +147,17 @@ print(intervalWithMaxSteps <- which(IntervalMean$MeanStepsByInt==maxAverageSteps
 ```
 ## [1] 104
 ```
-Thus, the maximum of the means is 206.1698113 
+
+```r
+elapsedMinutes <- (intervalWithMaxSteps-1) * 5
+theHour <- elapsedMinutes %/% 60
+theMinutes <- elapsedMinutes %% 60
+theTimeOfDay <- paste(as.character(theHour), as.character(theMinutes), sep = ":")
+```
+Thus, the maximum of the means is 206.17, 
 which is achieved in interval 104.
+
+This interval corresponds to the time of day 8:35, which is in twenty-four hour format.
 
 ## Imputing missing values
 The number and percent of records with missing values follows.
@@ -167,18 +168,25 @@ numMissingValues <- sum(is.na(activityDF$steps))
 percentMissingValues <- round(100 * sum(is.na(activityDF$steps))/nrow(activityDF), digits = 2)
 ```
 
-There are `numMissingValues` missing values in the **steps** variable, representing `percentMissingValues` percent of all records.
+There are 2304 missing values in the **steps** variable, representing 13.11 percent of all records.
 
 ### Replace Missing Values by the Interval Mean
-Our method for imputing missing values is to determine the mean number of steps for each time interval, then replace each NA by the corresponding mean for its interval. Recall that the data *without* missing values has been extracted and saved in the data frame **trimmedDF**. Thus to fulfill the requirement of creating a new data structure with the missing values filled in is fulfilled by filling in the missing values in the data frame **activityDF**. In fact, that single data frame contains all information in the pair, because for each record, whether the value in **steps** for is measured or imputed is recorded in the variable **StepsAreImputed**.
+Our method for imputing missing values is to determine the mean number of steps for each time interval, then replace each NA by the corresponding mean for its interval. Recall that the data *without* missing values has been extracted and saved in the data frame **trimmedDF**. Thus the requirement to create a new data structure with the missing values filled-in is fulfilled by filling in the missing values in the data frame **activityDF**. In fact, that single data frame contains all information in the pair. Whether the value in **steps** is measured or imputed is recorded in the variable **StepsAreImputed**.
 
-Our method to insert the missing values is to add a new column to the data frame that contains the average for the time interval represented by each row. That insertion is accomplished with the **dplyr::merge** function. It is then a simple matter to copy this column over any NA values in the **steps** variable. 
+We add a new column to the data frame that contains the average for the time interval represented by each row. That insertion is accomplished with the **dplyr::merge** function. It is then a simple matter to copy this column over any NA values in the **steps** variable. 
 
 
 ```r
 activityDF <- merge(activityDF, IntervalMean, by="interval")
 activityDF$steps <- ifelse(is.na(activityDF$steps), activityDF$MeanStepsByInt, activityDF$steps)
 ```
+
+### Histogram of Total Number of Steps per Day
+Please see the plots at the end of the next subsection.
+
+### Mean and Median Total Number of Steps per Day
+Please read the narrative in subsection, "Effect of Including Imputed Values ..." These values are
+reported there, in context.
 
 ### Compare Steps per Day With and Without Imputed Values
 For convenience o{f comparison, we repeat the histogram of steps per day ignoring missing values, then follow immediately with the histogram obtained by including imputed values.
@@ -226,7 +234,7 @@ meanOfSteps.withImputed <- mean(DailyTotalSteps.withImputed$DailySteps)
 theDifference <- meanOfSteps.withImputed - meanOfSteps.noImputed
 ```
 
-The mean number of steps per day, ignoring missing values is 10766.19. 
+The **mean number of steps per day**, ignoring missing values is 10766.19. 
 If we include the imputed values we obtain an overall mean of 
 10766.19, and a computed difference of 
 0.000000. 
@@ -236,7 +244,7 @@ In this case, the no-effect outcome could not be predicted from knowing the stra
 
 If we used the overall mean for all missing values (and we did not), then the no-effect outcome would have been certain.
 
-Medians don't work quite the same as means, so we might expect some impact on the median by imputing values. 
+**Medians** don't work quite the same as means, so we might expect some impact on the median by imputing values. 
 
 ```r
 MedianDailyTotalSteps.noImputed <- median(DailyTotalSteps$DailySteps)
@@ -246,9 +254,9 @@ theDifference <- MedianDailyTotalSteps.withImputed - MedianDailyTotalSteps.noImp
 
 If the subdistributions (with respect to time interval) are roughly symmetric, the impact will be small. That is the case here.  
 
-The median number of total daily steps without imputed values is 
+The **median number of total daily steps** without imputed values is 
 10765.00. 
-When imputed values are included, the median becomes 
+**When imputed values are included, the median becomes** 
 10766.19.
 The computed difference is 
 1.188679. 

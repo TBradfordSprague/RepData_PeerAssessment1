@@ -7,7 +7,7 @@ output:
     keep_md: true
 ---
 
-```{r global_options, include=TRUE}
+```{r global_options, include=TRUE, echo=TRUE}
 ```
 
 ## Loading and preprocessing the data
